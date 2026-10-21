@@ -80,6 +80,42 @@ Usually in ingestion: off-by-one page numbers, or metadata that wasn't carried t
 
 ### Q11. Why chunk at all ?
 
+- Hard limit: the embedding model only reads up to 2048 tokens per input. Anything past that is cut off or rejected.
+- Retrieval precision: each chunk becomes one vector, which is roughly an average of everything in it. If a chunk covers cash flow, risk factors and a CEO letter, its vector is a blur that matches none of those topics well.
+- Generation budget: the LLM sees top_k × chunk_size tokens of context. With five 2,000-token chunks, the model has to find one number in 10k tokens of text, and small models like gemma do badly at that.
 
+### Trade-Offs B/W Small(~100 tokens) and Large(~1000+ tokens) Chunks
 
+- Retrieval
+    - Small Chunks: Sharp Vectors, precise Matches
+    - Large Chunks: Blurry Vectors, Topics Mixed together
 
+- Context
+    - Small Chunks: Can lose context ("$217,901" without knowing what it measures)
+    - Small Chunks: Keeps Context Together
+
+- Cost
+    - Small Chunks: Many chunks, more vectors, more to search
+    - Fewer vectors, more tokens per prompt
+
+> `No chunk size is right for every dataset. You choose one by measuring your own data, so start there.`
+
+### Q12. What is an embedding? 
+
+A model reads text and returns a fixed-length list of numbers: 768 floats for nomic-embed-text. Texts with similar meaning get vectors pointing in similar directions. "CEO resigned" and "leadership change" end up close together even though they share no words. That's the advantage over keyword search.
+
+### Cosine similarity measures the angle between two vectors:
+
+`cos(a, b) = (a · b) / (|a| × |b|)        1.0 = same direction, 0 = unrelated`
+
+### Q13. "When does BM25 beat embeddings, and the other way round?" 
+BM25 wins on exact terms, IDs and rare jargon. Embeddings win on paraphrases and synonyms. Use your Sonic and Liberty examples.
+
+### Q14. Why fuse by rank instead of adding the scores?
+
+The scales are incompatible. RRF needs no tuning and handles outliers well.
+"Retrieval misses the answer. What do you try, in order?" (1) Check that ingestion and parsing actually contain the answer (the MongoDB lesson). (2) Use metadata routing. (3) Use hybrid search. (4) Rewrite the query. (5) Add a reranker. (6) Revisit chunking.
+
+### Q15. What is a reranker? 
+
+A cross-encoder that reads the query and a chunk together and scores their relevance. It's more accurate than comparing two separately computed vectors, but slower, so it's used only on the top 20–50 candidates. This is the main idea behind retrieve then rerank.

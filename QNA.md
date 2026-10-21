@@ -108,6 +108,18 @@ A model reads text and returns a fixed-length list of numbers: 768 floats for no
 
 `cos(a, b) = (a · b) / (|a| × |b|)        1.0 = same direction, 0 = unrelated`
 
+### Q13. "When does BM25 beat embeddings, and the other way round?" 
+BM25 wins on exact terms, IDs and rare jargon. Embeddings win on paraphrases and synonyms. Use your Sonic and Liberty examples.
+
+### Q14. Why fuse by rank instead of adding the scores?
+
+The scales are incompatible. RRF needs no tuning and handles outliers well.
+"Retrieval misses the answer. What do you try, in order?" (1) Check that ingestion and parsing actually contain the answer (the MongoDB lesson). (2) Use metadata routing. (3) Use hybrid search. (4) Rewrite the query. (5) Add a reranker. (6) Revisit chunking.
+
+### Q15. What is a reranker? 
+
+A cross-encoder that reads the query and a chunk together and scores their relevance. It's more accurate than comparing two separately computed vectors, but slower, so it's used only on the top 20–50 candidates. This is the main idea behind retrieve then rerank.
+
 
 
 
