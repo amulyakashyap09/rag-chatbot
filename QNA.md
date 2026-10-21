@@ -45,3 +45,58 @@ With 10,000 documents containing 100 pages each, we could have roughly a million
 Instead, I would chunk the documents, generate embeddings for those chunks, and index the vectors using FAISS. At query time, I would embed the user's question, retrieve the top-k relevant chunks using vector similarity search, and pass only those passages to the LLM.
 This reduces the amount of context sent to the model and makes query-time processing more efficient. However, it introduces new challenges: retrieval quality, chunk-size selection, index freshness, and the risk of missing relevant passages. I would measure retrieval quality and answer correctness to tune the system.
 
+---
+
+### Q5. Why not just split the PDF into fixed 500-character pieces straight away?
+You'd lose structure (pages and sections), so you couldn't cite sources or filter. Split by structure first, then by size.
+
+### Q6. Your RAG gives the right number with the wrong page citation. Where's the bug?
+Usually in ingestion: off-by-one page numbers, or metadata that wasn't carried through chunking.
+
+### Q7. What could go wrong in PDF parsing?
+- Tables flattened into jumbled text.
+- Two-column layouts read across both columns.
+- Scanned pages with no text layer, which need OCR.
+- Headers and footers repeated on every page.
+
+### Q8. What precautions to be taken while ingesting the data ?
+- Profiling the data before tuning the model is the kind of judgment that marks a senior candidate.
+- Before building the pipeline, I profiled the corpus: page counts, the longest pages, outliers. One document was 11 pages, another was 1,000+. 
+- That told me I needed metadata routing and N/A handling before tuning embeddings.
+
+### Q9. Why did you clean the text before chunking rather than after?
+- Chunk size is measured on the text, so noise makes the measurement wrong.
+    - Avoid wasting tokens on unnecessary whitespace
+- Chunk boundaries can't be fixed afterwards.
+    - Preserve meaningful boundaries
+- Overlap gets wasted the same way.
+- Improve embeddings and retrieval
+    - In a RAG pipeline, cleaned chunks are typically converted into embeddings and indexed for retrieval.
+    - Unnecessary formatting noise can make chunks less consistent. Cleaning first helps ensure that chunking, embeddings, and indexing all operate on normalized text.
+
+### Q10. what would break if you'd replaced <br> with \n instead of " ; "?
+
+"Two things break. First, structure: a markdown table row must be on one line, so newlines turn table rows into loose text and the label-to-column mapping is lost. Second, chunking: splitters treat newlines as preferred split points, so newlines inside table cells invite splits between a label and its values. The chunk count barely changes. What changes is where the splits fall, and they'd fall in the worst possible place for numeric questions. ' ; ' keeps the row on one line and still reads as a separator to an LLM."
+
+### Q11. Why chunk at all ?
+
+- Hard limit: the embedding model only reads up to 2048 tokens per input. Anything past that is cut off or rejected.
+- Retrieval precision: each chunk becomes one vector, which is roughly an average of everything in it. If a chunk covers cash flow, risk factors and a CEO letter, its vector is a blur that matches none of those topics well.
+- Generation budget: the LLM sees top_k × chunk_size tokens of context. With five 2,000-token chunks, the model has to find one number in 10k tokens of text, and small models like gemma do badly at that.
+
+### Trade-Offs B/W Small(~100 tokens) and Large(~1000+ tokens) Chunks
+
+- Retrieval
+    - Small Chunks: Sharp Vectors, precise Matches
+    - Large Chunks: Blurry Vectors, Topics Mixed together
+
+- Context
+    - Small Chunks: Can lose context ("$217,901" without knowing what it measures)
+    - Small Chunks: Keeps Context Together
+
+- Cost
+    - Small Chunks: Many chunks, more vectors, more to search
+    - Fewer vectors, more tokens per prompt
+
+> `No chunk size is right for every dataset. You choose one by measuring your own data, so start there.`
+
