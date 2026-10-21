@@ -100,3 +100,14 @@ Usually in ingestion: off-by-one page numbers, or metadata that wasn't carried t
 
 > `No chunk size is right for every dataset. You choose one by measuring your own data, so start there.`
 
+### Q12. What is an embedding? 
+
+A model reads text and returns a fixed-length list of numbers: 768 floats for nomic-embed-text. Texts with similar meaning get vectors pointing in similar directions. "CEO resigned" and "leadership change" end up close together even though they share no words. That's the advantage over keyword search.
+
+### Cosine similarity measures the angle between two vectors:
+
+`cos(a, b) = (a · b) / (|a| × |b|)        1.0 = same direction, 0 = unrelated`
+
+
+
+
